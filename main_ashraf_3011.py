@@ -194,10 +194,6 @@ def convert_image_to_png(image_path):
 
 # Frame consituency_window details are mentioned here
 def show_constituency_screen(base_frame):
-    # constituency_window = Toplevel(root)
-    # constituency_window.attributes('-fullscreen', "True")
-    # constituency_window.geometry('600x1024')
-    # constituency_window.configure(bg='white')
     clear_frame(base_frame)
 
     # Frame to control the label
@@ -252,6 +248,7 @@ def on_no_clicked(base_frame):
     clear_frame(base_frame)
     voting_terminated_screen(base_frame)
 
+
 def start_timer(frame, seconds, time_label, on_timeout):
     """
     A timer function that updates a label and executes a callback when time runs out.
@@ -261,14 +258,15 @@ def start_timer(frame, seconds, time_label, on_timeout):
     :param time_label: The label where the remaining time is displayed.
     :param on_timeout: The function to execute when the timer runs out.
     """
+    global has_voted
     def countdown(time_left):
         if time_left > 0:
             time_label.config(text=f"Time Left to accept: {time_left} seconds")
             frame.after(1000, countdown, time_left - 1)
             print("If")
-        elif not has_voted:
-            print("Elif")
-            on_timeout()  # Execute the callback when timer runs out
+        # elif not has_voted:
+        #     print("Elif")
+        #     on_timeout()  # Execute the callback when timer runs out
         else:
             print("Else")
             on_timeout()
@@ -326,9 +324,9 @@ def accept_image(image_path, base_frame):
         #                          bg='green',
         #                          command= lambda: on_success_ok_btn(image_window=image_window))
         # success_ok_btn.pack(fill=BOTH)
-        clear_frame(base_frame)
-        messagebox.showinfo(title =None, message = "Vote Successful")
-        open_vote_window(base_frame)
+        # clear_frame(base_frame)
+        # messagebox.showinfo(title =None, message = "Vote Successful")
+        confirm_print_screen(base_frame)
 
 def cancel_image(image_path,base_frame):
 #    encoding = "shift-jis"
@@ -336,8 +334,9 @@ def cancel_image(image_path,base_frame):
 #    encoded_text = message.encode(encoding)
 #    print_image(image_path, encoded_text)
     clear_frame(base_frame)
-    messagebox.showwarning(title =None, message = "Vote Cancelled")
-    open_vote_window(base_frame)
+    # messagebox.showwarning(title =None, message = "Vote Cancelled")
+    # open_vote_window(base_frame)
+    voting_terminated_screen(base_frame)
 
 def on_success_ok_btn(image_window):
     # Timer Label
@@ -351,38 +350,44 @@ def destroy_window(window):
     window.destroy()
 	
 def voting_terminated_screen(base_frame):
-    clear_frame(base_frame)  # Clear all previous widgets available on the Frame of the this page.
+    clear_frame(base_frame)  # Clear all previous widgets available on the Frame of this page.
     frame1 = Frame(base_frame,
-                    bg= "white",
-                    width=600,
-                    height=1024
-                    )
+                   bg="white",
+                   width=600,
+                   height=1024
+                   )
     frame1.pack_propagate(False)
     frame1.pack(fill='both', expand=True)
 
+    # Centering the heading label
     head_label = Label(frame1,
-                        bg="white",\
-                        fg="black",
-                        font=("Arial", 45),
-                        text="Your Voting is terminated."
-                        )
-    head_label.pack()
-    message_label = Label(frame1,
-                        bg="white",\
-                        fg="black",
-                        font=("Arial", 40),
-                        text="Go Back to the Polling Booth Officer"
-                        )
-    message_label.pack()
+                       bg="white",
+                       fg="black",
+                       font=("Arial", 35),
+                       text="Your Voting is terminated."
+                       )
+    head_label.place(relx=0.5, rely=0.4, anchor="center")
 
-    # Timer Label
-    time_label = Label(frame1, text="Time Left: 5 seconds", bg='white', font=("Arial", 24))
-    # time_label.pack(pady=(800, 10))
-    time_label.pack()
+    # Centering the message label
+    message_label = Label(frame1,
+                          bg="white",
+                          fg="black",
+                          font=("Arial", 25),
+                          text="Go Back to the Polling Booth Officer"
+                          )
+    message_label.place(relx=0.5, rely=0.5, anchor="center")
+
+    # Timer Label (positioned at the bottom)
+    time_label = Label(frame1,
+                       text="Time Left: 5 seconds",
+                       bg="white",
+                       font=("Arial", 24))
+    time_label.place(relx=0.5, rely=0.95, anchor="center")
 
     # Start Timer
     start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
     print("The voting has been terminated.")
+
 
 def open_vote_window(base_frame):
     """
@@ -390,6 +395,7 @@ def open_vote_window(base_frame):
 
     :param image_path: Frame e.g. base_frame
     """
+    clear_frame(base_frame)
     vote_frame = Frame(base_frame,
                        height=1024,
                        width=600,
@@ -405,15 +411,10 @@ def open_vote_window(base_frame):
                         bg="#4CAF50",
                         fg="white",
                         font=("Arial", 25, 'bold'),
-                        command=lambda: close_vote_window(base_frame)
+                        command=lambda: show_constituency_screen(base_frame)
                         )
     btn_vote.pack(expand=True)
 	
-def close_vote_window(base_frame):
-    clear_frame(base_frame)
-    show_constituency_screen(base_frame=base_frame)
-    # home(base_frame, "small")
-
 def confirm():
     global confirmation_response
     confirmation_response = None
@@ -714,23 +715,126 @@ def open_image_screen(base_frame, image_path):
     # Start Timer
     start_timer(frame1, 5, time_label, lambda: accept_image(image_path, base_frame))
 
-def start_timer(frame, seconds, time_label, on_timeout):
-    """
-    Starts a countdown timer and updates the timer label. Calls `on_timeout` when time runs out.
+# Frame consituency_window details are mentioned here
+def confirm_print_screen(base_frame):
+    clear_frame(base_frame)
 
-    :param frame: The parent frame where the timer runs.
-    :param seconds: Total seconds for the countdown.
-    :param time_label: Label to display the remaining time.
-    :param on_timeout: Function to execute when the timer expires.
-    """
-    def countdown(time_left):
-        if time_left > 0:
-            time_label.config(text=f"Time Left: {time_left} seconds")
-            frame.after(1000, countdown, time_left - 1)
-        else:
-            on_timeout()
+    # Frame to control the label
+    frame1 = Frame(base_frame,
+                    height=1024,
+                    width=600,
+                    bg='white'
+                    )
+    frame1.pack_propagate(False)
+    frame1.pack(fill='both', expand=True)
 
-    countdown(seconds)
+    label = Label(frame1,
+                  text="Is the \n Print as Voted?",
+                  font=("Arial", 30, 'bold'),
+                  bg='white',
+                  fg='black',
+                  justify='center'
+                  )
+    label.pack(pady=200)
+
+    # Frame for Buttons
+    button_frame = Frame(frame1, bg='white')
+    button_frame.pack(expand=True)
+
+    # Styled Yes Button
+    yes_button = Button(button_frame, 
+                        text="Yes", 
+                        width=10,
+                        height=2,
+                        bg= "#4CAF50",
+                        fg= 'white',
+                        font=("Arial",15, "bold"),
+                        command=lambda: on_print_yes_clicked(base_frame))
+    yes_button.pack(side="left", padx=50)
+
+    no_button = Button(button_frame,
+                       text="No",
+                       width=10,
+                       height=2,
+                       bg="#F44336",
+                       fg="white",
+                       font=("Arial", 15, "bold"),
+                       command=lambda: on_print_no_clicked(base_frame))
+    no_button.pack(side="right", padx=50)
+
+
+def on_print_no_clicked(base_frame):
+    cancel_vote(base_frame)
+
+def cancel_vote(base_frame):
+    print("Vote Print Cancelled.")
+    voting_terminated_screen(base_frame)
+
+def on_print_yes_clicked(base_frame):
+    print("Vote print confirmed.")
+    voting_thanks_screen(base_frame)
+
+def voting_thanks_screen(base_frame):
+    clear_frame(base_frame)  # Clear all previous widgets available on the Frame of this page.
+    frame1 = Frame(base_frame,
+                   bg="white",
+                   width=600,
+                   height=1024
+                   )
+    frame1.pack_propagate(False)
+    frame1.pack(fill='both', expand=True)
+
+    # Centering the heading label
+    head_label = Label(frame1,
+                       bg="white",
+                       fg="black",
+                       font=("Arial", 35),
+                       text="Thank you for Voting."
+                       )
+
+    head_label.place(relx=0.5, rely=0.4, anchor="center")
+
+    # Centering the message label
+    message_label = Label(frame1,
+                          bg="white",
+                          fg="black",
+                          font=("Arial", 25),
+                          text="All the best :)"
+                          )
+    message_label.place(relx=0.5, rely=0.5, anchor="center")
+
+    # Timer Label (positioned at the bottom)
+    time_label = Label(frame1,
+                       text="Time Left: 5 seconds",
+                       bg="white",
+                       font=("Arial", 24))
+    time_label.place(relx=0.5, rely=0.95, anchor="center")
+
+    # Start Timer
+    start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
+    print("Thank you for Voting.")
+    # open_vote_window(base_frame)
+
+
+# def start_timer(frame, seconds, time_label, on_timeout):
+#     """
+#     Starts a countdown timer and updates the timer label. Calls `on_timeout` when time runs out.
+
+#     :param frame: The parent frame where the timer runs.
+#     :param seconds: Total seconds for the countdown.
+#     :param time_label: Label to display the remaining time.
+#     :param on_timeout: Function to execute when the timer expires.
+#     """
+#     def countdown(time_left):
+#         if time_left > 0:
+#             time_label.config(text=f"Time Left: {time_left} seconds")
+#             frame.after(1000, countdown, time_left - 1)
+#         else:
+#             on_timeout()
+
+#     countdown(seconds)
+
+
 
 # shutdown_img = PhotoImage(file="../buttons/shutdown_test.png") 
 # d = Button(bottom_frame, image=shutdown_img, bg= 'grey', fg='grey',command=verify_shutdown) 
