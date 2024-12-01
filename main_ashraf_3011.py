@@ -1,4 +1,4 @@
-import tkinter as tk
+
 from tkinter import Frame, RAISED, BOTH, PhotoImage, Button, Label, Entry, Toplevel, END, Canvas, Scrollbar, TclError
 from ttkthemes import themed_tk as tk
 from time import sleep
@@ -13,11 +13,10 @@ import barcode
 from barcode.writer import ImageWriter
 from PIL import Image,ImageDraw, ImageFont
 
-import time
 import RPi.GPIO as GPIO
 
 root = tk.ThemedTk()
-root.title("Home Page")
+root.title("Vote Printing Machine")
 root.geometry('600x1024')
 root.configure(bg='white')
 root.get_themes()
@@ -578,7 +577,6 @@ class PasscodeDialog(simpledialog.Dialog):
     def apply(self):
         self.result = self.passcode
         
-        
 def verify_home():
     dialog = PasscodeDialog(root)
     if dialog.result == "1234":
@@ -587,7 +585,6 @@ def verify_home():
     else: 
         messagebox.showerror(title =None, message = "Access Denied, Incorrect Passcode")
 
-        
 def verify_shutdown():
     dialog = PasscodeDialog(root)
     if dialog.result == "1234":
@@ -596,7 +593,6 @@ def verify_shutdown():
     else: 
         messagebox.showerror(title =None, message = "Access Denied, Incorrect Passcode")
     
-        
 def shutdown():
     # os.system("sudo shutdown -h now")
     os.system("pkill -f main_ashraf_2911.py")
@@ -653,10 +649,18 @@ def grid_screen(base_frame, image_directory_path):
         photo = PhotoImage(file=img_path)
         button = Button(scrollable_frame,
                         image=photo,
-                        bg="white",
-                        highlightthickness=0,
                         bd=0,
+    # `                   highlightthickness=0, 
+                        highlightbackground="white", 
+                        highlightcolor="white",
+                        fg="white",
+                        bg="white", 
+                        relief="flat",
+                        borderwidth=0,
+                        activebackground="white",
+                        activeforeground="white",
                         command=lambda p=img_path: open_image_screen(base_frame, p))
+        
         button.image = photo
         button.grid(row=idx // 2, column=idx % 2, padx=10, pady=10)
 
@@ -703,19 +707,43 @@ def open_image_screen(base_frame, image_path):
 
     # Accept and Cancel Buttons
     accept_img = PhotoImage(file="buttons/accept_test.png")
-    btn_accept = Button(frame1, image=accept_img, command=lambda: accept_image(image_path, base_frame))
+
+    btn_accept = Button(frame1,
+                        highlightthickness=0, 
+                        highlightbackground="white", 
+                        highlightcolor="white",
+                        fg="white",
+                        bg="white", 
+                        relief="flat",
+                        borderwidth=0,
+                        activebackground="white",
+                        activeforeground="white", 
+                        image=accept_img, 
+                        command=lambda: accept_image(image_path, base_frame))
     btn_accept.image = accept_img
-    btn_accept.pack(side="left", padx=10, pady=10)
+    btn_accept.pack(side="left", padx=50, pady=10)
 
     cancel_img = PhotoImage(file="buttons/cancel_test.png")
-    btn_cancel = Button(frame1, image=cancel_img, command=lambda: cancel_image(image_path, base_frame))
+    # btn_cancel = Button(frame1, image=cancel_img, command=lambda: cancel_image(image_path, base_frame))
+    btn_cancel = Button(frame1,
+                        highlightthickness=0, 
+                        highlightbackground="white", 
+                        highlightcolor="white",
+                        fg="white",
+                        bg="white", 
+                        relief="flat",
+                        borderwidth=0,
+                        activebackground="white",
+                        activeforeground="white", 
+                        image=cancel_img, 
+                        command=lambda: cancel_image(image_path, base_frame))
     btn_cancel.image = cancel_img
     btn_cancel.pack(side="right", padx=10, pady=10)
 
     # Start Timer
     start_timer(frame1, 5, time_label, lambda: accept_image(image_path, base_frame))
 
-# Frame consituency_window details are mentioned here
+# Screen :: Ask to confirm if the print was as selected image
 def confirm_print_screen(base_frame):
     clear_frame(base_frame)
 
@@ -761,7 +789,6 @@ def confirm_print_screen(base_frame):
                        font=("Arial", 15, "bold"),
                        command=lambda: on_print_no_clicked(base_frame))
     no_button.pack(side="right", padx=50)
-
 
 def on_print_no_clicked(base_frame):
     cancel_vote(base_frame)
@@ -849,7 +876,7 @@ def voting_thanks_screen(base_frame):
 # root.after(100, show_constituency_screen)\
 # clear_frame(root)
 
-base_frame = Frame(root, bg="red")
+base_frame = Frame(root, bg="white")
 base_frame.pack(fill='both', expand=True)
 
 open_vote_window(base_frame)
