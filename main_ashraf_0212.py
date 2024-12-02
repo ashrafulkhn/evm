@@ -2,10 +2,8 @@ import tkinter as tk
 from tkinter import Frame, RAISED, BOTH, PhotoImage, Button, Label, Entry, Toplevel, END, Canvas, Scrollbar, TclError
 from ttkthemes import themed_tk as tk
 from os import system
-from tkinter import simpledialog, messagebox, Canvas
-from PIL import Image
+from tkinter import Canvas
 import os
-import time
 from print_actions import print_image
 from escpos.printer import *
 
@@ -16,8 +14,6 @@ root.configure(bg='white')
 root.get_themes()
 root.wm_attributes('-fullscreen', 'True')
 root.set_theme("clearlooks")
-
-
 
 # =======Add-On Functions==========
 def clear_frame(frame):
@@ -42,12 +38,10 @@ def start_timer(frame, seconds, time_label, on_timeout):
         if time_left > 0:
             time_label.config(text=f"Time Left to accept: {time_left} seconds")
             frame.after(1000, countdown, time_left - 1)
-            print("If")
         # elif not has_voted:
         #     print("Elif")
         #     on_timeout()  # Execute the callback when timer runs out
         else:
-            print("Else")
             on_timeout()
     countdown(seconds)
 
@@ -80,8 +74,7 @@ def open_vote_window(base_frame):
                         )
     btn_vote.pack(expand=True)
 
-# Screens :: Constituency Screen
-
+# Screen :: Constituency Screen
 def show_constituency_screen(base_frame):
     """
     Frame consituency_window details are mentioned here
@@ -136,7 +129,6 @@ def on_yes_clicked(base_frame):
     grid_screen(base_frame, "small")
 
 def on_no_clicked(base_frame):
-    # messagebox.showinfo("Contact Polling Officer", "Please Contact your polling officer.")
     clear_frame(base_frame)
     voting_terminated_screen(base_frame)
 
@@ -164,7 +156,14 @@ def grid_screen(base_frame, image_directory_path):
     canvas = Canvas(frame1, bg='white')
     canvas.pack(side="left", fill="both", expand=True)
 
-    scrollbar = Scrollbar(frame1, orient="vertical", command=canvas.yview)
+    scrollbar = Scrollbar(frame1, 
+                        orient="vertical", 
+                        command=canvas.yview, 
+                        width=30,
+                        relief="flat",
+                        takefocus=1,
+                        troughcolor="black"
+                        )
     scrollbar.pack(side="right", fill="y")
     canvas.configure(yscrollcommand=scrollbar.set)
 
@@ -177,6 +176,11 @@ def grid_screen(base_frame, image_directory_path):
 
     scrollable_frame.bind("<Configure>", configure_scroll_region)
 
+    col_image=1 # start from column 1
+    row_image=3 # start from row 3 
+    col_label=1 # start from column 1
+    row_label=4 # start from row 3 
+
     # Load images from directory and create buttons
     image_files = [os.path.join(image_directory_path, f) for f in os.listdir(image_directory_path) if f.endswith((".png", ".jpg", ".jpeg"))]
     for idx, img_path in enumerate(image_files):
@@ -184,29 +188,100 @@ def grid_screen(base_frame, image_directory_path):
         button = Button(scrollable_frame,
                         image=photo,
                         bd=0,
-    # `                   highlightthickness=0, 
-                        highlightbackground="white", 
+                        border=4,
+                        highlightbackground="white",
                         highlightcolor="white",
                         fg="white",
                         bg="white", 
                         relief="flat",
-                        borderwidth=0,
+                        height=200,
+                        width=200,
+                        borderwidth=4,
                         activebackground="white",
                         activeforeground="white",
                         command=lambda p=img_path: open_image_screen(base_frame, p))
         
         button.image = photo
-        button.grid(row=idx // 2, column=idx % 2, padx=10, pady=10)
+        # button.grid(row=idx // 2, column=idx % 2, padx=10, pady=10, sticky="news")
 
-    # Enable Mouse and Touch Scrolling
-    def on_touch_scroll(event):
-        canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+        # Add a label below the image for the file name (without extension)
+        file_name = os.path.basename(img_path).split('.')[0]  # Remove the extension
+        label = Label(scrollable_frame, text=file_name, bg="#000000", border=4,fg="white", font=("Arial", 20, "bold"), borderwidth=1, relief="solid", padx=5, pady=5)
+
+        button.grid(row=row_image, column=col_image, padx=30, pady=30, sticky="news")      # Buttons in two columns
+        label.grid(row=row_label, column=col_label, padx=30, pady=5, sticky="news")     # Labels below the button
+        
+        if(col_label==2):                   # start new line after third column
+            row_label=row_label+2           # start wtih next row
+            col_label=1                     # start with first column
+        else:                               # within the same row
+            col_label=col_label+1           # increase to next column
+
+        if(col_image==2):                   # start new line after third column
+            row_image=row_image+2           # start wtih next row
+            col_image=1                     # start with first column
+        else:                               # within the same row
+            col_image=col_image+1           # increase to next column 
+
+    # # Enable Mouse and Touch Scrolling
+    # def on_touch_scroll(event):
+    #     canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+
+    # def on_mouse_wheel(event):
+    #     canvas.yview_scroll(int(-1 * event.delta / 120), "units")
+    # def on_press(evt):
+    #     canvas.offset_y = evt.y_root  # Record the y position when the finger touches
+
+    # def on_touch_scroll(evt):
+    #     delta = evt.y_root - canvas.offset_y  # Calculate the distance moved
+    #     canvas.offset_y = evt.y_root  # Update the offset
+    #     if delta < 0:
+    #         canvas.yview_scroll(-1, "units")  # Scroll up if moved up
+    #     else:
+    #         canvas.yview_scroll(1, "units")  # Scroll down if moved down
+
+    # def on_mouse_wheel(event):
+    #     canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")  # For mouse scrolling
+
+    # canvas.bind("<Button-1>", on_press)  # Bind to detect when the user touches
+    # canvas.bind("<B1-Motion>", on_touch_scroll)
+    # canvas.bind_all("<MouseWheel>", on_mouse_wheel)
+    # ================================================
+    # Enable Mouse, Touch, and Keyboard Scrolling
+
+    def on_press(evt):
+        canvas.offset_y = evt.y_root  # Record the y position when the touch starts
+
+    def on_touch_scroll(evt):
+        delta = evt.y_root - canvas.offset_y  # Calculate the distance moved
+        canvas.offset_y = evt.y_root  # Update the offset
+        if delta < 0:
+            canvas.yview_scroll(-1, "units")  # Scroll up if moved up
+        else:
+            canvas.yview_scroll(1, "units")  # Scroll down if moved down
 
     def on_mouse_wheel(event):
-        canvas.yview_scroll(int(-1 * event.delta / 120), "units")
+        if event.num == 5 or event.delta < 0:  # Scroll down
+            canvas.yview_scroll(1, "units")
+        if event.num == 4 or event.delta > 0:  # Scroll up
+            canvas.yview_scroll(-1, "units")
 
-    canvas.bind_all("<MouseWheel>", on_mouse_wheel)
-    canvas.bind("<B1-Motion>", on_touch_scroll)
+    def on_key_press(event):
+        if event.keysym == "Up":
+            canvas.yview_scroll(-1, "units")  # Scroll up
+        elif event.keysym == "Down":
+            canvas.yview_scroll(1, "units")  # Scroll down
+
+    # Bind events
+    canvas.bind("<Button-1>", on_press)  # Detect touch start
+    canvas.bind("<B1-Motion>", on_touch_scroll)  # Detect touch movement
+    canvas.bind_all("<MouseWheel>", on_mouse_wheel)  # Detect mouse scroll
+    canvas.bind_all("<KeyPress-Up>", on_key_press)  # Up arrow key
+    canvas.bind_all("<KeyPress-Down>", on_key_press)  # Down arrow key
+
+    # For Linux systems, bind <Button-4> and <Button-5> for mouse scroll
+    canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+    canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
 # Screen :: Enlarged Image Screen
 def open_image_screen(base_frame, image_path):
@@ -218,8 +293,6 @@ def open_image_screen(base_frame, image_path):
     global has_voted
     has_voted = False
     clear_frame(base_frame)
-    # image_window.attributes('-fullscreen', True)
-    # image_window.configure(bg='white')
 
     # Frame to control the Widgets
     frame1 = Frame(base_frame,
@@ -232,7 +305,21 @@ def open_image_screen(base_frame, image_path):
 
     # Display Image
     photo = PhotoImage(file=image_path)
-    lbl = Label(frame1, image=photo)
+    lbl = Label(frame1, 
+                image=photo,
+                bd=0,
+                border=4,
+                highlightbackground="white",
+                highlightcolor="white",
+                fg="white",
+                bg="white", 
+                relief="flat",
+                height=400,
+                width=400,
+                borderwidth=4,
+                activebackground="white",
+                activeforeground="white"
+                )
     lbl.image = photo
     lbl.pack(pady=(50, 10))
 
@@ -259,7 +346,6 @@ def open_image_screen(base_frame, image_path):
     btn_accept.pack(side="left", padx=50, pady=10)
 
     cancel_img = PhotoImage(file="buttons/cancel_test.png")
-    # btn_cancel = Button(frame1, image=cancel_img, command=lambda: cancel_image(image_path, base_frame))
     btn_cancel = Button(frame1,
                         highlightthickness=0, 
                         highlightbackground="white", 
@@ -282,35 +368,12 @@ def accept_image(image_path, base_frame):
     global has_voted
     if not has_voted:
         has_voted = True
-       # encoding = "shift-jis"
-       # message = "Voted"
-       # encoded_text = message.encode(encoding)
-        # print_image(image_path)
-        # image_window.destroy()
-
-        # clear_frame(image_window)
-        # frame = Frame(image_window,
-        #               bg="green")
-        # frame.pack()
-
-        # success_ok_btn =  Button(frame, text="Close",
-        #                          fg='white',
-        #                          bg='green',
-        #                          command= lambda: on_success_ok_btn(image_window=image_window))
-        # success_ok_btn.pack(fill=BOTH)
-        # clear_frame(base_frame)
-        # messagebox.showinfo(title =None, message = "Vote Successful")
         confirm_print_screen(base_frame)
 
 def cancel_image(image_path,base_frame):
-#    encoding = "shift-jis"
-#    message = "Cancelled"
-#    encoded_text = message.encode(encoding)
-#    print_image(image_path, encoded_text)
     clear_frame(base_frame)
-    # messagebox.showwarning(title =None, message = "Vote Cancelled")
-    # open_vote_window(base_frame)
-    voting_terminated_screen(base_frame)
+    # voting_terminated_screen(base_frame)
+    grid_screen(base_frame, "small")
 
 # Screen :: Ask to confirm if the print was as selected image
 def confirm_print_screen(base_frame):
@@ -363,11 +426,11 @@ def on_print_no_clicked(base_frame):
     cancel_vote(base_frame)
 
 def cancel_vote(base_frame):
-    print("Vote Print Cancelled.")
+    # print("Vote Print Cancelled.")
     voting_terminated_screen(base_frame)
 
 def on_print_yes_clicked(base_frame):
-    print("Vote print confirmed.")
+    # print("Vote print confirmed.")
     voting_thanks_screen(base_frame)
 
 # Screen :: Thank you for Voting Screen
@@ -385,7 +448,7 @@ def voting_thanks_screen(base_frame):
     head_label = Label(frame1,
                        bg="white",
                        fg="black",
-                       font=("Arial", 35),
+                       font=("Arial", 35, "bold"),
                        text="Thank you for Voting."
                        )
 
@@ -395,7 +458,7 @@ def voting_thanks_screen(base_frame):
     message_label = Label(frame1,
                           bg="white",
                           fg="black",
-                          font=("Arial", 25),
+                          font=("Arial", 25, "bold"),
                           text="All the best :)"
                           )
     message_label.place(relx=0.5, rely=0.5, anchor="center")
@@ -409,7 +472,7 @@ def voting_thanks_screen(base_frame):
 
     # Start Timer
     start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
-    print("Thank you for Voting.")
+    # print("Thank you for Voting.")
 
 
 # Screen :: Vote Terminated Screen
