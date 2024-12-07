@@ -102,7 +102,7 @@ def top_motor():
 
 def top_motor_re():
     pwm_top = GPIO.PWM(top_motor_pin, 52)
-    pwm_top.start(6)
+    pwm_top.start(8)
     time_delay_top = decrement_value_in_file(file_path_top)
     print(time_delay_top)
     time.sleep(3)
@@ -110,7 +110,7 @@ def top_motor_re():
 
 def bottom_motor():
     pwm_bottom = GPIO.PWM(bottom_motor_pin, 50)
-    pwm_bottom.start(8)
+    pwm_bottom.start(6)
     time_delay_bottom = decrement_value_in_file(file_path_bottom)
     print(time_delay_bottom)
     time.sleep(time_delay_bottom)
@@ -123,6 +123,14 @@ def bottom_motor_re():
     print(time_delay_bottom)
     time.sleep(3)
     pwm_bottom.stop()
+
+def glass_action(glass_pin, state):
+    if glass_pin in [top_glass_pin, bottom_glass_pin]:
+        # Determine the GPIO output state based on "ON" or "OFF"
+        output_state = GPIO.LOW if state == "ON" else GPIO.HIGH
+        GPIO.output(glass_pin, output_state)
+    else:
+        print("Glass Not defined.")
 
 def top_glass_on():
     GPIO.output(top_glass_pin, GPIO.LOW)
@@ -144,50 +152,58 @@ def bottom_glass_off():
 # =========PRINTER===========================
 # PRINTER SETUP
 # Printer 1 Path in Linux
-top_printer = File("/dev/usb/lp0")
-top_printer.set(font='a',align="center",width=1,height=1)
+top_printer = 1
+# top_printer = File("/dev/usb/lp0")
+# top_printer.set(font='a',align="center",width=1,height=1)
 
 # Printer 2 Path in Linux
-bottom_printer = File("/dev/usb/lp1")
-bottom_printer.set(font='a',align="center",width=1,height=1)
+bottom_printer = 2
+# bottom_printer = File("/dev/usb/lp1")
+# bottom_printer.set(font='a',align="center",width=1,height=1)
 
-def print_image(img_path):
-    global print_select	
-    rand = random.randint(1, 2)
-    GPIO.output(red_led_pin, GPIO.LOW)
-    GPIO.output(green_led_pin, GPIO.HIGH)
-    if rand == 1:
-        print_select = 1	
-    elif rand == 2:
-        print_select = 2
+# Global variable to store the selected printer
+selected_printer = None
 
-    print_select = 2
+# Function to randomly select a printer
+def select_printer():
+    global selected_printer
+    selected_printer = random.choice([top_printer, bottom_printer])
+    print(f"Selected printer : {selected_printer}")
 
-    if print_select == 1:
-     #   p1.writelines(vote_status + "\n")
-        bottom_printer._raw(b'\x1b@')
-        bottom_printer.set(align='center')
-        bottom_printer.set(font='a', align = "center", width=1, height=1)
-        bottom_printer._raw(b'\x1b\x21x')
-        bottom_printer.image(img_path)
-        bottom_motor_re()
-     #   time.sleep(1)
-        time.sleep(3)
-        #bottom_motor()
-        bottom_glass_on()
+def print_image(image_path):
+    try:
+        if not selected_printer:
+            raise ValueError("Printer not selected.")
+    except Exception as e:
+        print(f"Error printing image: {e}")
+
+    try:
+        GPIO.output(red_led_pin, GPIO.LOW)
+        GPIO.output(green_led_pin, GPIO.HIGH)
+        selected_printer._raw(b'\x1b@')
+        selected_printer.set(align='center')
+        selected_printer.set(font='a', align = "center", width=1, height=1)
+        selected_printer._raw(b'\x1b\x21x')
+        selected_printer.image(image_path)
+        (bottom_motor if selected_printer == 1 else top_motor)()  # Start the Approprite Motor 
         
-        # message = confirm()
-        # This is the confirmation of print. The return message should be "Voted" or "Cancelled" here.
-        message = "Voted"
+    except AttributeError as e:
+        print(f"Error printing image: {e}")
 
-        bottom_printer._raw(b'\n')
+def print_vote_status(image_name, vote_status):
+    message = vote_status
+    try:
+        if not selected_printer:
+            raise ValueError("Printer not selected!")
+    
+        selected_printer._raw(b'\n')
         ean = barcode.get('ean13', '123456789012', writer=ImageWriter())
         filename = ean.save('barcode')
-        barcode_image = Image.open(filename)
+        selected_printer = Image.open(filename)
         barcode_image = barcode_image.rotate(90, expand=True)  
         new_size = (100,200)
         barcode_image = barcode_image.resize(new_size, Image.Resampling.LANCZOS)
-       
+        
         barcode_image.save('resized_rotated_barcode.png')
         combined_width = barcode_image.width + 200  
         combined_height = max(barcode_image.height, 50)  
@@ -200,11 +216,11 @@ def print_image(img_path):
         text_position = (barcode_image.width + 10, (combined_height - font_size) // 2)  # Adjust text position
         draw.text(text_position, message, fill='black', font=font)
         combined_image.save('../combined_image.png')
-        bottom_printer.image('../combined_image.png')
+        selected_printer.image('../combined_image.png')
         barcode_datåa = "12345678"
-        bottom_printer._raw(b'\x1dV\x00')
-        bottom_printer.cut()
-        bottom_printer.flush()
+        selected_printer._raw(b'\x1dV\x00')
+        selected_printer.cut()
+        selected_printer.flush()
         #time.sleep(0.1)
         bottom_motor()
         time.sleep(6)
@@ -212,52 +228,8 @@ def print_image(img_path):
         GPIO.output(red_led_pin, GPIO.HIGH)
         GPIO.output(green_led_pin, GPIO.LOW)
 
-    elif print_select == 2:
-        top_printer._raw(b'\x1b@')
-        top_printer.set(align='center')
-        top_printer.set(font='a', align = "center", width=1, height=1)
-        top_printer._raw(b'\x1b\x21x')
-        top_printer.image(img_path)
-        time.sleep(1)
-        top_motor_re()
-        time.sleep(3)
-        top_glass_on()
-        #top_motor
-
-        # message = confirm()
-        # This is the confirmation of print. The return message should be "Voted" or "Cancelled" here.
-
-        message = "Voted"
-        top_printer._raw(b'\n')
-        ean = barcode.get('ean13', '123456789012', writer=ImageWriter())
-        filename = ean.save('barcode')
-        barcode_image = Image.open(filename)
-        barcode_image = barcode_image.rotate(90, expand=True)  
-        new_size = (100,200)
-        barcode_image = barcode_image.resize(new_size, Image.Resampling.LANCZOS)
-       
-        barcode_image.save('../resized_rotated_barcode.png')
-        combined_width = barcode_image.width + 200  
-        combined_height = max(barcode_image.height, 50)  
-        combined_image = Image.new('RGB', (combined_width, combined_height), 'white')
-        barcode_x_position = -30
-        combined_image.paste(barcode_image, (barcode_x_position, 0))
-        draw = ImageDraw.Draw(combined_image)
-        font_size = 58
-        font = ImageFont.truetype("usr/share/fonts/truetype/msttcorefonts/Arial.ttf", 24)  # Load a default font; adjust as necessary
-        text_position = (barcode_image.width + 10, (combined_height - font_size) // 2)  # Adjust text position
-        draw.text(text_position, message, fill='black', font=font)
-        combined_image.save('../combined_image.png')
-        top_printer.image('../combined_image.png')
-        barcode_datåa = "12345678"
-        top_printer._raw(b'\x1dV\x00')
-        top_printer.cut()
-        top_printer.flush()
-        top_motor()
-        time.sleep(6)
-        top_glass_off()
-        GPIO.output(red_led_pin, GPIO.HIGH)
-        GPIO.output(green_led_pin, GPIO.LOW)
+    except Exception as e:
+        print(f"Error printing barcode and correct text: {e}")
 
 # ============GUI Related Fuctions==========
 # ========ROOT WINDOW CREATION==============
@@ -452,12 +424,12 @@ def open_vote_window(base_frame):
         width=413,
         height=146
         )
-    # power_button.place(
-    #     x=15,
-    #     y=13,
-    #     width=70,
-    #     height=70
-    #     )
+    power_button.place(
+        x=15,
+        y=13,
+        width=70,
+        height=70
+        )
     # close_button.place(
     #     x=384,
     #     y=13,
@@ -757,19 +729,25 @@ def open_image_screen(base_frame, image_path):
     start_timer(frame1, 5, time_label, lambda: accept_image(image_path, base_frame))
 
 def accept_image(image_path, base_frame):
-    global has_voted
-    if not has_voted:
-        has_voted = True
-        print_image(image_path)
-        confirm_print_screen(base_frame)
+    confirm_print_screen(base_frame, image_path)
+
 
 def cancel_image(image_path,base_frame):
     clear_frame(base_frame)
-    # voting_terminated_screen(base_frame)
     grid_screen(base_frame, "small")
 
 # Screen :: Ask to confirm if the print was as selected image
-def confirm_print_screen(base_frame):
+def confirm_print_screen(base_frame, image_path):
+    """
+      Screen :: Ask to confirm if the print was as selected image
+
+      :param base_frame : Root Tkinter window or any frame.
+      :param image_directory_path: Path to the directory containing images.
+    """
+    select_printer()
+    print(f"Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
+    print_image(image_path)
+    
     clear_frame(base_frame)
 
     # Frame to control the label
@@ -802,7 +780,7 @@ def confirm_print_screen(base_frame):
                         bg= "#4CAF50",
                         fg= 'white',
                         font=("Candara",15, "bold"),
-                        command=lambda: on_print_yes_clicked(base_frame))
+                        command=lambda: on_print_accepted(base_frame, image_path))
     yes_button.pack(side="left", padx=50)
 
     no_button = Button(button_frame,
@@ -812,19 +790,21 @@ def confirm_print_screen(base_frame):
                        bg="#F44336",
                        fg="white",
                        font=("Candara", 15, "bold"),
-                       command=lambda: on_print_no_clicked(base_frame))
+                       command=lambda: on_print_rejected(base_frame, image_path))
     no_button.pack(side="right", padx=50)
 
-def on_print_no_clicked(base_frame):
-    cancel_vote(base_frame)
+def on_print_accepted(base_frame, image_path):
+    global vote_status 
+    vote_status = "Voted Success"
+    print_vote_status(image_path, vote_status)
+    voting_thanks_screen(base_frame)
 
-def cancel_vote(base_frame):
-    # print("Vote Print Cancelled.")
+def on_print_rejected(base_frame, image_path):
+    global vote_status
+    vote_status = "Cancelled"
+    print_vote_status(image_path, vote_status)
     voting_terminated_screen(base_frame)
 
-def on_print_yes_clicked(base_frame):
-    # print("Vote print confirmed.")
-    voting_thanks_screen(base_frame)
 
 # Screen :: Thank you for Voting Screen
 def voting_thanks_screen(base_frame):
@@ -909,10 +889,14 @@ def voting_terminated_screen(base_frame):
     start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
     # print("The voting has been terminated.")
 
-# Continue the main script
-base_frame = Frame(root, bg="white")
-base_frame.pack(fill='both', expand=True)
+def main():
+    # Continue the main script
+    base_frame = Frame(root, bg="white")
+    base_frame.pack(fill='both', expand=True)
 
-open_vote_window(base_frame)
-# home(root, "small")
-root.mainloop()
+    open_vote_window(base_frame)
+    # home(root, "small")
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
