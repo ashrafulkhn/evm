@@ -84,7 +84,13 @@ def decrement_value_in_file(file_path):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-
+def resize_image(image_path, width, height):
+    try:
+        image = Image.open(image_path)
+        resized_image = image.resize(width, height, Image.Resampling.LANCZOS)
+        return resized_image
+    except Exception as e:
+        return None
 
 # =====FUNCTIONS=======
 def reset_pi():
@@ -132,22 +138,13 @@ def glass_action(glass_pin, state):
     else:
         print("Glass Not defined.")
 
-def top_glass_on():
-    GPIO.output(top_glass_pin, GPIO.LOW)
-   # time.sleep(6)
-   # GPIO.output(glass_T, GPIO.HIGH)
-    
-def top_glass_off():
-    GPIO.output(top_glass_pin, GPIO.HIGH)
-
-def bottom_glass_on():
-    GPIO.output(bottom_glass_pin, GPIO.LOW)
-   # time.sleep(6)
-    #GPIO.output(glass_B, GPIO.HIGH)
-    
-def bottom_glass_off():
-    GPIO.output(bottom_glass_pin, GPIO.HIGH)
-
+def led_action(led_pin, state):
+    if led_pin in [red_led_pin, green_led_pin]:
+        # Determine the GPIO output state based on "ON" or "OFF"
+        output_state = GPIO.LOW if state == "ON" else GPIO.HIGH
+        GPIO.output(led_pin, output_state)
+    else:
+        print("LED Pin Not defined.")
 
 # =========PRINTER===========================
 # PRINTER SETUP
@@ -171,6 +168,7 @@ def select_printer():
     print(f"Selected printer : {selected_printer}")
 
 def print_image(image_path):
+    global selected_printer
     try:
         if not selected_printer:
             raise ValueError("Printer not selected.")
@@ -178,19 +176,23 @@ def print_image(image_path):
         print(f"Error printing image: {e}")
 
     try:
-        GPIO.output(red_led_pin, GPIO.LOW)
-        GPIO.output(green_led_pin, GPIO.HIGH)
+        led_action(green_led_pin, "OFF")
+        led_action(red_led_pin, "ON")
         selected_printer._raw(b'\x1b@')
         selected_printer.set(align='center')
         selected_printer.set(font='a', align = "center", width=1, height=1)
         selected_printer._raw(b'\x1b\x21x')
-        selected_printer.image(image_path)
-        (bottom_motor if selected_printer == 1 else top_motor)()  # Start the Approprite Motor 
-        
+        resized_image = resize_image(image_path, 200, 200)
+        selected_printer.image(resized_image)
+        (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor 
+        glass_pin = (bottom_glass_pin if selected_printer == bottom_printer else top_glass_pin)  # Start the Appropriate Glass
+        glass_action(glass_pin, "ON")
+
     except AttributeError as e:
         print(f"Error printing image: {e}")
 
 def print_vote_status(image_name, vote_status):
+    global selected_printer
     message = vote_status
     try:
         if not selected_printer:
@@ -222,11 +224,12 @@ def print_vote_status(image_name, vote_status):
         selected_printer.cut()
         selected_printer.flush()
         #time.sleep(0.1)
-        bottom_motor()
+        (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor
+        glass_pin = (bottom_glass_pin if selected_printer == bottom_printer else top_glass_pin)  # Start the Appropriate Glass
         time.sleep(6)
-        bottom_glass_off()
-        GPIO.output(red_led_pin, GPIO.HIGH)
-        GPIO.output(green_led_pin, GPIO.LOW)
+        glass_action(glass_pin, "OFF")
+        led_action(red_led_pin, "OFF")
+        led_action(green_led_pin, "ON")
 
     except Exception as e:
         print(f"Error printing barcode and correct text: {e}")
@@ -488,22 +491,19 @@ def show_constituency_screen(base_frame):
     no_button.pack(side="right", padx=50)
 
 def on_yes_clicked(base_frame):
-    clear_frame(base_frame)
-    grid_screen(base_frame, "small")
+    grid_screen(base_frame, "print")
 
 def on_no_clicked(base_frame):
-    clear_frame(base_frame)
     voting_terminated_screen(base_frame)
 
 # Screen :: Grid Screen
 def grid_screen(base_frame, image_directory_path):
     """
-    Displays a scrollable grid of image buttons. Clicking an image button opens `open_image_screen`.
+    Screen :: Displays a scrollable grid of image buttons. Clicking an image button opens `open_image_screen`.
 
     :param base_frame: Root Tkinter window or any frame.
     :param image_directory_path: Path to the directory containing images.
     """
-
     clear_frame(base_frame)
 
     # Frame to control the label
@@ -744,6 +744,7 @@ def confirm_print_screen(base_frame, image_path):
       :param base_frame : Root Tkinter window or any frame.
       :param image_directory_path: Path to the directory containing images.
     """
+    global selected_printer
     select_printer()
     print(f"Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
     print_image(image_path)
@@ -890,7 +891,6 @@ def voting_terminated_screen(base_frame):
     # print("The voting has been terminated.")
 
 def main():
-    # Continue the main script
     base_frame = Frame(root, bg="white")
     base_frame.pack(fill='both', expand=True)
 

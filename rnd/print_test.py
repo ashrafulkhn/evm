@@ -186,3 +186,22 @@ def print_image_old(img_path):
     bottom_glass_off()
     GPIO.output(red_led_pin, GPIO.HIGH)
     GPIO.output(green_led_pin, GPIO.LOW)
+
+import RPi.GPIO as GPIO
+
+bottom_glass_pin    = 17
+top_glass_pin       = 27
+
+bottom_motor = 1
+
+def glass_action(glass_pin, state):
+    if glass_pin in [top_glass_pin, bottom_glass_pin]:
+        # Determine the GPIO output state based on "ON" or "OFF"
+        output_state = GPIO.LOW if state == "ON" else GPIO.HIGH
+        GPIO.output(glass_pin, output_state)
+    else:
+        print("Glass Not defined.")
+
+
+glass_pin = (bottom_glass_pin if selected_printer == bottom_motor else top_glass_pin)  # Start the Appropriate Glass
+glass_action(glass_pin, "ON")
