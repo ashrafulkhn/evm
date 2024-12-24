@@ -40,14 +40,14 @@ button_image = ImageTk.PhotoImage(resized_image)
 image_label = Button(frame2, 
                     image=button_image, 
                     highlightthickness=0, 
-                    highlightbackground="white", 
+                    highlightbackground="grey", 
                     highlightcolor="white",
                     fg="white",
-                    bg="white", 
+                    bg="red", 
                     relief="flat",
                     borderwidth=0,
-                    activebackground="white",
-                    activeforeground="white",
+                    activebackground="purple",
+                    activeforeground="blue",
                     command=button_command
                     )
 image_label.place(relx=0.5, rely=0.5, anchor="center")  # Center the image
