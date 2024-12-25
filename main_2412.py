@@ -18,7 +18,9 @@ print(f"Default path : {BASE_DIR}")
 
 # ========CONFIGURATION PARSER======
 config = ConfigParser()
-config.read('config.ini')
+# Use BASE_DIR to construct the full path to the config file
+config_file_path = os.path.join(BASE_DIR, 'config.ini')
+config.read(config_file_path)
 
 # Get values from the config file
 printing_width      = int(config['PRINTING']['width'])
@@ -246,6 +248,51 @@ def print_image(image_path):
     
     selected_printer.close()
 
+# def print_vote_status(image_name, vote_status):
+#     global selected_printer
+#     message = vote_status
+#     try:
+#         if not selected_printer:
+#             raise ValueError("Printer not selected!")
+
+#         # Comment these line if any problem arises.
+#         selected_printer._raw(b'\x1b@')
+#         # selected_printer.set(align='center')
+#         selected_printer.set(font='a', align = "center", width=1, height=1)
+#         # selected_printer._raw(b'\x1b\x21x')
+#         #  Comment upto here
+
+#         selected_printer._raw(b'\n')
+#         ean = barcode.get('ean13', '123456789012', writer=ImageWriter())
+#         filename = ean.save('barcode')
+#         barcode_image = Image.open(filename)
+#         barcode_image = barcode_image.rotate(90, expand=True)  
+#         new_size = (100,200)
+#         barcode_image = barcode_image.resize(new_size, Image.Resampling.LANCZOS)
+        
+#         barcode_image.save('resized_rotated_barcode.png')
+#         combined_width = barcode_image.width + 200  
+#         combined_height = max(barcode_image.height, 50)  
+#         combined_image = Image.new('RGB', (combined_width, combined_height), 'white')
+#         barcode_x_position = -30
+#         combined_image.paste(barcode_image, (barcode_x_position, 0))
+#         draw = ImageDraw.Draw(combined_image)
+#         font_size = 58
+#         font = ImageFont.truetype("usr/share/fonts/truetype/msttcorefonts/Arial.ttf", 24)  # Load a default font; adjust as necessary
+#         text_position = (barcode_image.width + 10, (combined_height - font_size) // 2)  # Adjust text position
+#         draw.text(text_position, message, fill='black', font=font)
+#         combined_image.save('../combined_image.png')
+#         selected_printer.image('../combined_image.png')
+#         barcode_dataa = "12345678"
+#         selected_printer._raw(b'\x1dV\x00')
+#         selected_printer.cut()
+#         selected_printer.flush()
+#         #time.sleep(0.1)
+#         (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor
+
+#     except Exception as e:
+#         print(f"Error printing barcode and correct text: {e}")
+
 def print_vote_status(image_name, vote_status):
     global selected_printer
     message = vote_status
@@ -253,40 +300,58 @@ def print_vote_status(image_name, vote_status):
         if not selected_printer:
             raise ValueError("Printer not selected!")
 
-        # Comment these line if any problem arises.
+        # Comment these lines if any problem arises.
         selected_printer._raw(b'\x1b@')
-        # selected_printer.set(align='center')
-        selected_printer.set(font='a', align = "center", width=1, height=1)
-        # selected_printer._raw(b'\x1b\x21x')
-        #  Comment upto here
+        selected_printer.set(font='a', align="center", width=1, height=1)
 
         selected_printer._raw(b'\n')
+        
+        # Create barcode and save to BASE_DIR
         ean = barcode.get('ean13', '123456789012', writer=ImageWriter())
-        filename = ean.save('barcode')
-        barcode_image = Image.open(filename)
+        barcode_image_path = os.path.join(BASE_DIR, 'barcode.png')
+        filename = ean.save(barcode_image_path)
+        
+        # Open the barcode image and process it
+        barcode_image = Image.open(barcode_image_path)
         barcode_image = barcode_image.rotate(90, expand=True)  
-        new_size = (100,200)
+        new_size = (100, 200)
         barcode_image = barcode_image.resize(new_size, Image.Resampling.LANCZOS)
         
-        barcode_image.save('resized_rotated_barcode.png')
+        # Save resized barcode image
+        resized_barcode_image_path = os.path.join(BASE_DIR, 'resized_rotated_barcode.png')
+        barcode_image.save(resized_barcode_image_path)
+
+        # Create combined image
         combined_width = barcode_image.width + 200  
         combined_height = max(barcode_image.height, 50)  
         combined_image = Image.new('RGB', (combined_width, combined_height), 'white')
+        
+        # Place the barcode on the combined image
         barcode_x_position = -30
         combined_image.paste(barcode_image, (barcode_x_position, 0))
+
+        # Add text message to the combined image
         draw = ImageDraw.Draw(combined_image)
         font_size = 58
-        font = ImageFont.truetype("usr/share/fonts/truetype/msttcorefonts/Arial.ttf", 24)  # Load a default font; adjust as necessary
-        text_position = (barcode_image.width + 10, (combined_height - font_size) // 2)  # Adjust text position
+        font_path = os.path.join(BASE_DIR, "usr/share/fonts/truetype/msttcorefonts/Arial.ttf")  # Adjust the font path as needed
+        font = ImageFont.truetype(font_path, 24)  # Load the font
+        text_position = (barcode_image.width + 10, (combined_height - font_size) // 2)
         draw.text(text_position, message, fill='black', font=font)
-        combined_image.save('../combined_image.png')
-        selected_printer.image('../combined_image.png')
-        barcode_dataa = "12345678"
+
+        # Save the final combined image
+        combined_image_path = os.path.join(BASE_DIR, 'combined_image.png')
+        combined_image.save(combined_image_path)
+
+        # Send the image to the printer
+        selected_printer.image(combined_image_path)
+
+        # Cut the paper
         selected_printer._raw(b'\x1dV\x00')
         selected_printer.cut()
         selected_printer.flush()
-        #time.sleep(0.1)
-        (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor
+
+        # Trigger the appropriate motor based on the selected printer
+        (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Appropriate Motor
 
     except Exception as e:
         print(f"Error printing barcode and correct text: {e}")
