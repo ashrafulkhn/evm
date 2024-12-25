@@ -208,7 +208,7 @@ def print_image(image_path):
     
     selected_printer.close()
 
-def print_vote_status(image_name, vote_status):
+def print_vote_status(image_path, vote_status):
     global selected_printer
     message = vote_status
     try:
@@ -753,6 +753,10 @@ def open_image_screen(base_frame, image_path):
     start_timer(frame1, 5, time_label, lambda: accept_image(image_path, base_frame))
 
 def accept_image(image_path, base_frame):
+    global selected_printer
+    select_printer()
+    print(f"Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
+    print_image(image_path)
     confirm_print_screen(base_frame, image_path)
 
 def cancel_image(image_path,base_frame):
@@ -767,11 +771,6 @@ def confirm_print_screen(base_frame, image_path):
       :param base_frame : Root Tkinter window or any frame.
       :param image_directory_path: Path to the directory containing images.
     """
-    global selected_printer
-    select_printer()
-    print(f"Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
-    print_image(image_path)
-    
     clear_frame(base_frame)
 
     # Frame to control the label

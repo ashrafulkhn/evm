@@ -8,14 +8,34 @@ import os, time, random
 from escpos.printer import *
 import barcode
 from barcode.writer import ImageWriter
-from PIL import Image,ImageDraw, ImageFont
-
+from PIL import Image,ImageDraw, ImageFont, ImageTk
+from configparser import ConfigParser
 import RPi.GPIO as GPIO
 
-print("Starting Application begining.")
-
+# ========DEFINE BASE DIRECTORY=====
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 print(f"Default path : {BASE_DIR}")
+
+# ========CONFIGURATION PARSER======
+config = ConfigParser()
+config.read('config.ini')
+
+# Get values from the config file
+printing_width      = int(config['PRINTING']['width'])
+printing_height     = int(config['PRINTING']['height'])
+grid_image_width    = int(config['GRID_RESIZE']['width'])
+grid_image_height   = int(config['GRID_RESIZE']['height'])
+large_image_width   = int(config['LARGE_RESIZE']['width'])
+large_image_height  = int(config['LARGE_RESIZE']['height'])
+rotation_angle      = int(config['IMAGE']['rotation_angle'])
+base_directory      = config['PATHS']['base_directory']
+
+# Timer configuration
+confim_selection_timer  = int(config['TIMERS']['confim_selection_timer'])
+confirm_print_timer     = int(config['TIMERS']['confirm_print_timer'])
+termination_timer       = int(config['TIMERS']['termination_timer'])
+thanks_screen_timer     = int(config['TIMERS']['thanks_screen_timer'])
+constituency_timer     = int(config['TIMERS']['constituency_timer'])
 
 # ========EXTERNAL I/O DEVICE FUNCTIONS======
 GPIO.setmode(GPIO.BCM)
@@ -42,6 +62,7 @@ GPIO.setup  (reset_button_pin,    GPIO.IN)
 # Set Initial State for the Output GPIO.
 GPIO.output(top_glass_pin, GPIO.HIGH)
 GPIO.output(bottom_glass_pin, GPIO.HIGH)
+
 GPIO.output(green_led_pin, GPIO.LOW)
 GPIO.output(red_led_pin, GPIO.HIGH)
 
@@ -95,10 +116,25 @@ def decrement_value_in_file(file_path):
 def resize_image(image_path, width, height):
     try:
         image = Image.open(image_path)
-        resized_image = image.resize(width, height, Image.Resampling.LANCZOS)
-        return resized_image
+        resized_image = image.resize((width, height), Image.Resampling.LANCZOS)
+        tk_image = ImageTk.PhotoImage(resized_image)  # Convert to PhotoImage
+        return tk_image
     except Exception as e:
+        print(f"Error resizing image {image_path}: {e}")
         return None
+
+def resize_print_image(image_path, width, height):
+    try:
+        image = Image.open(image_path)
+        # Rotate 90 degrees clockwise
+        rotated_image = image.rotate(-90, expand=True)
+        # Resize the rotated image
+        resized_image = rotated_image.resize((width, height), Image.Resampling.LANCZOS)
+        return resized_image  # Return the rotated and resized Pillow image
+    except Exception as e:
+        print(f"Error resizing image {image_path}: {e}")
+        return None
+
 
 # =====FUNCTIONS=======
 def reset_pi():
@@ -143,8 +179,9 @@ def glass_action(glass_pin, state):
         # Determine the GPIO output state based on "ON" or "OFF"
         output_state = GPIO.LOW if state == "ON" else GPIO.HIGH
         GPIO.output(glass_pin, output_state)
+        print(f" INFO:: Glass {glass_pin} is {state}")
     else:
-        print("Glass Not defined.")
+        print("Error:: Glass Not defined.")
 
 def led_action(led_pin, state):
     if led_pin in [red_led_pin, green_led_pin]:
@@ -152,13 +189,13 @@ def led_action(led_pin, state):
         output_state = GPIO.LOW if state == "ON" else GPIO.HIGH
         GPIO.output(led_pin, output_state)
     else:
-        print("LED Pin Not defined.")
+        print("Error:: LED Pin Not defined.")
 
 # =========PRINTER===========================
 # PRINTER SETUP
-# Printer 1 Path in Linux
-# top_printer = 1
 try:
+    # Printer 1 Path in Linux
+    # top_printer = 1
     print("Printer selection started.")
     top_printer = File("/dev/usb/lp0")
     top_printer.set(font='a',align="center",width=1,height=1)
@@ -179,7 +216,7 @@ print("Printer Added.")
 def select_printer():
     global selected_printer
     selected_printer = random.choice([top_printer, bottom_printer])
-    # selected_printer = bottom_printer
+    # selected_printer = top_printer
     print(f"Selected printer : {selected_printer}")
 
 def print_image(image_path):
@@ -196,9 +233,10 @@ def print_image(image_path):
     # selected_printer.set(align='center')
     selected_printer.set(font='a', align = "center", width=1, height=1)
     selected_printer._raw(b'\x1b\x21x')
-    # resized_image = resize_image(image_path, 200, 200)
-    # selected_printer.image(resized_image)
-    selected_printer.image(image_path)
+    resized_image = resize_print_image(image_path, printing_height, printing_width)
+    selected_printer.image(resized_image)
+    # selected_printer.image(image_path)
+
     (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor 
     glass_pin = (bottom_glass_pin if selected_printer == bottom_printer else top_glass_pin)  # Start the Appropriate Glass
     glass_action(glass_pin, "ON")
@@ -243,17 +281,12 @@ def print_vote_status(image_name, vote_status):
         draw.text(text_position, message, fill='black', font=font)
         combined_image.save('../combined_image.png')
         selected_printer.image('../combined_image.png')
-        barcode_datåa = "12345678"
+        barcode_dataa = "12345678"
         selected_printer._raw(b'\x1dV\x00')
         selected_printer.cut()
         selected_printer.flush()
         #time.sleep(0.1)
         (bottom_motor if selected_printer == bottom_printer else top_motor)()  # Start the Approprite Motor
-        glass_pin = (bottom_glass_pin if selected_printer == bottom_printer else top_glass_pin)  # Start the Appropriate Glass
-        # time.sleep(6)
-        glass_action(glass_pin, "OFF")
-        led_action(red_led_pin, "OFF")
-        led_action(green_led_pin, "ON")
 
     except Exception as e:
         print(f"Error printing barcode and correct text: {e}")
@@ -330,7 +363,7 @@ def on_power_button(action):
     if pass_status == 1:
         if action == "close_app":
             # Close app routine
-            os.system("pkill -f main_1812.py") 
+            os.system("pkill -f main_2412.py") 
             # pass 
         elif action == "shutdown":
             # Shutdown routine
@@ -384,6 +417,8 @@ def open_vote_window(base_frame):
 
     :param image_path: Frame e.g. base_frame
     """
+    global selectd_printer
+
     clear_frame(base_frame)
     vote_frame = Frame(base_frame,
                        height=800,
@@ -464,6 +499,12 @@ def open_vote_window(base_frame):
     #     height=70
     #     )
 
+    glass_pin = (bottom_glass_pin if selected_printer == bottom_printer else top_glass_pin)
+    glass_action(glass_pin, "OFF")
+
+    led_action(red_led_pin, "OFF")
+    led_action(green_led_pin, "ON")
+
 # Screen :: Constituency Screen
 def show_constituency_screen(base_frame):
     """
@@ -502,7 +543,7 @@ def show_constituency_screen(base_frame):
                         fg= 'white',
                         font=("Candara",15, "bold"),
                         command=lambda: on_yes_clicked(base_frame))
-    yes_button.pack(side="left", padx=50)
+    yes_button.pack(side="left", padx=20)
 
     no_button = Button(button_frame,
                        text="No",
@@ -512,10 +553,20 @@ def show_constituency_screen(base_frame):
                        fg="white",
                        font=("Candara", 15, "bold"),
                        command=lambda: on_no_clicked(base_frame))
-    no_button.pack(side="right", padx=50)
+    no_button.pack(side="right", padx=20)
+
+    # Timer Label (positioned at the bottom)
+    time_label = Label(frame1,
+                       text="Time Left: 5 seconds",
+                       bg="white",
+                       font=("Candara", 9))
+    time_label.place(relx=0.5, rely=0.95, anchor="center")
+
+    # Start Timer
+    start_timer(frame1, constituency_timer, time_label, lambda: open_vote_window(base_frame))
 
 def on_yes_clicked(base_frame):
-    grid_screen(base_frame, image_directory_path=os.path.join(BASE_DIR, "small"))
+    grid_screen(base_frame, image_directory_path=os.path.join(BASE_DIR, "print"))
 
 def on_no_clicked(base_frame):
     voting_terminated_screen(base_frame)
@@ -571,25 +622,28 @@ def grid_screen(base_frame, image_directory_path):
     # Load images from directory and create buttons
     image_files = [os.path.join(image_directory_path, f) for f in os.listdir(image_directory_path) if f.endswith((".png", ".jpg", ".jpeg"))]
     for idx, img_path in enumerate(image_files):
-        photo = PhotoImage(file=img_path)
-        button = Button(scrollable_frame,
-                        image=photo,
-                        bd=0,
-                        border=4,
-                        highlightbackground="white",
-                        highlightcolor="white",
-                        fg="white",
-                        bg="white", 
-                        relief="flat",
-                        height=150,
-                        width=150,
-                        borderwidth=4,
-                        activebackground="white",
-                        activeforeground="white",
-                        command=lambda p=img_path: open_image_screen(base_frame, p))
-        
-        button.image = photo
-        # button.grid(row=idx // 2, column=idx % 2, padx=10, pady=10, sticky="news")
+        resized_photo = resize_image(img_path, grid_image_width, grid_image_height)
+        if resized_photo is None:
+            continue  # Skip the image if resizing failed
+        button = Button(
+            scrollable_frame,
+            image=resized_photo,
+            bd=0,
+            border=4,
+            highlightbackground="white",
+            highlightcolor="white",
+            fg="white",
+            bg="white",
+            relief="flat",
+            height=150,
+            width=150,
+            borderwidth=4,
+            activebackground="white",
+            activeforeground="white",
+            command=lambda p=img_path: open_image_screen(base_frame, p)
+        )
+        button.image = resized_photo  # Keep a reference to avoid garbage collection
+        # button.grid(row=row_image, column=col_image, padx=30, pady=30, sticky="news")
 
         # Add a label below the image for the file name (without extension)
         file_name = os.path.basename(img_path).split('.')[0]  # Remove the extension
@@ -691,9 +745,10 @@ def open_image_screen(base_frame, image_path):
     frame1.pack(fill='both', expand=True)
 
     # Display Image
-    photo = PhotoImage(file=image_path)
+    resized_image = resize_image(image_path, large_image_height, large_image_width)
+    # photo = PhotoImage(file=image_path)
     lbl = Label(frame1, 
-                image=photo,
+                image=resized_image,
                 bd=0,
                 border=4,
                 highlightbackground="white",
@@ -707,13 +762,8 @@ def open_image_screen(base_frame, image_path):
                 activebackground="white",
                 activeforeground="white"
                 )
-    lbl.image = photo
+    lbl.image = resized_image
     lbl.pack(pady=(50, 10))
-
-    # Timer Label
-    time_label = Label(frame1, text="Time Left: 5 seconds", bg='white', font=("Candara", 9))
-    # time_label.pack(pady=(20, 10))
-    time_label.pack()
 
     # Accept and Cancel Buttons
     accept_img = PhotoImage(file=os.path.join(BASE_DIR, "buttons", "accept_test.png"))
@@ -749,15 +799,31 @@ def open_image_screen(base_frame, image_path):
     btn_cancel.image = cancel_img
     btn_cancel.pack(side="right", padx=10, pady=10)
 
+    # # Timer Label
+    # time_label = Label(frame1, text="Time Left: 5 seconds", bg='white', font=("Candara", 9))
+    # # time_label.pack(pady=(20, 10))
+    # time_label.pack()
+
+    # Timer Label (positioned at the bottom)
+    time_label = Label(frame1,
+                       text="Time Left: 5 seconds",
+                       bg="white",
+                       font=("Candara", 9))
+    time_label.place(relx=0.5, rely=0.95, anchor="center")
+
     # Start Timer
-    start_timer(frame1, 5, time_label, lambda: accept_image(image_path, base_frame))
+    start_timer(frame1, confim_selection_timer, time_label, lambda: accept_image(image_path, base_frame))
 
 def accept_image(image_path, base_frame):
+    global selected_printer
+    select_printer()
+    print(f"INFO:: Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
+    print_image(image_path)
     confirm_print_screen(base_frame, image_path)
 
 def cancel_image(image_path,base_frame):
     clear_frame(base_frame)
-    grid_screen(base_frame, image_directory_path=os.path.join(BASE_DIR, "small"))
+    grid_screen(base_frame, image_directory_path=os.path.join(BASE_DIR, "print"))
 
 # Screen :: Ask to confirm if the print was as selected image
 def confirm_print_screen(base_frame, image_path):
@@ -767,10 +833,6 @@ def confirm_print_screen(base_frame, image_path):
       :param base_frame : Root Tkinter window or any frame.
       :param image_directory_path: Path to the directory containing images.
     """
-    global selected_printer
-    select_printer()
-    print(f"Selected Printer: {'Top Printer' if selected_printer == top_printer else 'Bottom Printer'}")
-    print_image(image_path)
     
     clear_frame(base_frame)
 
@@ -783,14 +845,32 @@ def confirm_print_screen(base_frame, image_path):
     frame1.pack_propagate(False)
     frame1.pack(fill='both', expand=True)
 
+    # Display Image
+    resized_image = resize_image(image_path, large_image_height, large_image_width)
+    lbl = Label(frame1, 
+                image=resized_image,
+                bd=0,
+                border=4,
+                highlightbackground="white",
+                highlightcolor="white",
+                fg="white",
+                bg="white", 
+                relief="flat",
+                borderwidth=4,
+                activebackground="white",
+                activeforeground="white"
+                )
+    lbl.image = resized_image
+    lbl.pack(pady=(50, 10))
+
     label = Label(frame1,
-                  text="Is the \n Print as Voted?",
+                  text="Confirm if the print \n match your vote?",
                   font=("Candara", 20, 'bold'),
                   bg='white',
                   fg='black',
                   justify='center'
                   )
-    label.pack(pady=200)
+    label.pack(pady=50)
 
     # Frame for Buttons
     button_frame = Frame(frame1, bg='white')
@@ -805,7 +885,7 @@ def confirm_print_screen(base_frame, image_path):
                         fg= 'white',
                         font=("Candara",15, "bold"),
                         command=lambda: on_print_accepted(base_frame, image_path))
-    yes_button.pack(side="left", padx=50)
+    yes_button.pack(side="left", padx=20)
 
     no_button = Button(button_frame,
                        text="No",
@@ -815,7 +895,17 @@ def confirm_print_screen(base_frame, image_path):
                        fg="white",
                        font=("Candara", 15, "bold"),
                        command=lambda: on_print_rejected(base_frame, image_path))
-    no_button.pack(side="right", padx=50)
+    no_button.pack(side="right", padx=20)
+
+    # Timer Label (positioned at the bottom)
+    time_label = Label(frame1,
+                       text="Time Left: 5 seconds",
+                       bg="white",
+                       font=("Candara", 9))
+    time_label.place(relx=0.5, rely=0.95, anchor="center")
+
+    # Start Timer
+    start_timer(frame1, confim_selection_timer, time_label, lambda: on_print_accepted(base_frame, image_path))
 
 def on_print_accepted(base_frame, image_path):
     global vote_status 
@@ -829,9 +919,9 @@ def on_print_rejected(base_frame, image_path):
     print_vote_status(image_path, vote_status)
     voting_terminated_screen(base_frame)
 
-
 # Screen :: Thank you for Voting Screen
 def voting_thanks_screen(base_frame):
+    global selected_printer
     clear_frame(base_frame)  # Clear all previous widgets available on the Frame of this page.
     frame1 = Frame(base_frame,
                    bg="white",
@@ -869,12 +959,12 @@ def voting_thanks_screen(base_frame):
     time_label.place(anchor="center")
 
     # Start Timer
-    start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
+    start_timer(frame1, thanks_screen_timer, time_label, lambda: open_vote_window(base_frame))
     # print("Thank you for Voting.")
-
 
 # Screen :: Vote Terminated Screen
 def voting_terminated_screen(base_frame):
+    global selected_printer
     clear_frame(base_frame)  # Clear all previous widgets available on the Frame of this page.
     frame1 = Frame(base_frame,
                    bg="white",
@@ -910,7 +1000,7 @@ def voting_terminated_screen(base_frame):
     time_label.place(relx=0.5, rely=0.95, anchor="center")
 
     # Start Timer
-    start_timer(frame1, 5, time_label, lambda: open_vote_window(base_frame))
+    start_timer(frame1, termination_timer, time_label, lambda: open_vote_window(base_frame))
     # print("The voting has been terminated.")
 
 print("Starting Application.")
