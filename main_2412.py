@@ -830,39 +830,64 @@ def open_image_screen(base_frame, image_path):
     lbl.image = resized_image
     lbl.pack(pady=(50, 10))
 
-    # Accept and Cancel Buttons
-    accept_img = PhotoImage(file=os.path.join(BASE_DIR, "buttons", "accept_test.png"))
+    # # Accept and Cancel Buttons
+    # accept_img = PhotoImage(file=os.path.join(BASE_DIR, "buttons", "accept_test.png"))
 
-    btn_accept = Button(frame1,
-                        highlightthickness=0, 
-                        highlightbackground="white", 
-                        highlightcolor="white",
-                        fg="white",
-                        bg="white", 
-                        relief="flat",
-                        borderwidth=0,
-                        activebackground="white",
-                        activeforeground="white", 
-                        image=accept_img, 
+    # btn_accept = Button(frame1,
+    #                     highlightthickness=0, 
+    #                     highlightbackground="white", 
+    #                     highlightcolor="white",
+    #                     fg="white",
+    #                     bg="white", 
+    #                     relief="flat",
+    #                     borderwidth=0,
+    #                     activebackground="white",
+    #                     activeforeground="white", 
+    #                     image=accept_img, 
+    #                     command=lambda: accept_image(image_path, base_frame))
+    # btn_accept.image = accept_img
+    # btn_accept.pack(side="left", padx=50, pady=10)
+
+    # cancel_img = PhotoImage(file=os.path.join(BASE_DIR, "buttons", "cancel_test.png"))
+    # btn_cancel = Button(frame1,
+    #                     highlightthickness=0, 
+    #                     highlightbackground="white", 
+    #                     highlightcolor="white",
+    #                     fg="white",
+    #                     bg="white", 
+    #                     relief="flat",
+    #                     borderwidth=0,
+    #                     activebackground="white",
+    #                     activeforeground="white", 
+    #                     image=cancel_img, 
+    #                     command=lambda: cancel_image(image_path, base_frame))
+    # btn_cancel.image = cancel_img
+    # btn_cancel.pack(side="right", padx=10, pady=10)
+
+        # Frame for Buttons
+    button_frame = Frame(frame1, bg='white')
+    button_frame.pack(expand=True)
+
+    # Styled Yes Button
+    yes_button = Button(button_frame, 
+                        text="Yes", 
+                        width=10,
+                        height=2,
+                        bg= "#4CAF50",
+                        fg= 'white',
+                        font=("Candara",15, "bold"),
                         command=lambda: accept_image(image_path, base_frame))
-    btn_accept.image = accept_img
-    btn_accept.pack(side="left", padx=50, pady=10)
+    yes_button.pack(side="left", padx=20)
 
-    cancel_img = PhotoImage(file=os.path.join(BASE_DIR, "buttons", "cancel_test.png"))
-    btn_cancel = Button(frame1,
-                        highlightthickness=0, 
-                        highlightbackground="white", 
-                        highlightcolor="white",
-                        fg="white",
-                        bg="white", 
-                        relief="flat",
-                        borderwidth=0,
-                        activebackground="white",
-                        activeforeground="white", 
-                        image=cancel_img, 
-                        command=lambda: cancel_image(image_path, base_frame))
-    btn_cancel.image = cancel_img
-    btn_cancel.pack(side="right", padx=10, pady=10)
+    no_button = Button(button_frame,
+                       text="No",
+                       width=10,
+                       height=2,
+                       bg="#F44336",
+                       fg="white",
+                       font=("Candara", 15, "bold"),
+                       command=lambda: cancel_image(image_path, base_frame))
+    no_button.pack(side="right", padx=20)
 
     # # Timer Label
     # time_label = Label(frame1, text="Time Left: 5 seconds", bg='white', font=("Candara", 9))
